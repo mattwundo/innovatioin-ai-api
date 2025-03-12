@@ -30,7 +30,8 @@ def predict():
 
     return jsonify(response)
 import os
+
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))  # Use Render's PORT
+    port = int(os.environ.get("PORT", 10000))  # Render automatically sets $PORT
     app.run(host='0.0.0.0', port=port)
 
