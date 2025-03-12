@@ -1,6 +1,1 @@
-import joblib
 
-# Save the trained model
-joblib.dump(rf_model, "r_and_d_model.pkl")
-
-print("✅ Model saved as r_and_d_model.pkl")
