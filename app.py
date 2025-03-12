@@ -1,37 +1,34 @@
 from flask import Flask, request, jsonify
+import joblib
 import numpy as np
+import os
 
 app = Flask(__name__)
 
-# Load the trained Q-table (Temporary placeholder)
-q_table = np.zeros((100, 100, 100, 3))  
+# Load the trained model
+model = joblib.load("r_and_d_model.pkl")
 
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
 
-    market_value = data.get('market_value', 50)
-    r_and_d = data.get('r_and_d', 50)
-    competitor_threat = data.get('competitor_threat', 50)
+    # Ensure required fields are present
+    if "Revenue" not in data:
+        return jsonify({"error": "Missing Revenue value"}), 400
 
-    # Convert to Q-table index
-    state_idx = tuple(np.clip((np.array([market_value, r_and_d, competitor_threat]) // 2).astype(int), 0, 99))
+    # Extract revenue value
+    revenue = np.array(data["Revenue"]).reshape(1, -1)
 
-    # Choose the best action from Q-table
-    best_action = np.argmax(q_table[state_idx])
+    # Make prediction
+    predicted_r_and_d = model.predict(revenue)[0]
 
-    action_mapping = {0: "Low R&D Investment", 1: "Medium R&D Investment", 2: "High R&D Investment"}
     response = {
-        "market_value": market_value,
-        "r_and_d": r_and_d,
-        "competitor_threat": competitor_threat,
-        "recommended_action": action_mapping[best_action]
+        "Revenue": data["Revenue"],
+        "Predicted R&D Spend": predicted_r_and_d
     }
 
     return jsonify(response)
-import os
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))  # Use Render's PORT variable
-    app.run(host='0.0.0.0', port=port)  # Bind to 0.0.0.0 to allow external access
-
+    port = int(os.environ.get("PORT", 10000))  # Use Render's assigned PORT
+    app.run(host='0.0.0.0', port=port)
