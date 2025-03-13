@@ -76,26 +76,26 @@ with tab1:
     # API URL (Replace with actual Render API URL)
     API_URL = "https://your-app-name.onrender.com/predict"
 
-    def generate_innovation_tradeoff_graph(revenue, r_and_d_spend):
+    def generate_innovation_tradeoff_graph(revenue, r_and_d_spend, risk_tolerance, rd_allocation):
         """
-        Generates a custom Innovation Tradeoff Graph based on user-entered private company data.
+        Generates a dynamic Innovation Tradeoff Graph based on user-entered private company data.
         """
         fig, ax = plt.subplots()
 
         # Time (Years)
         years = np.arange(0, 10, 1)
 
-        # Incremental Innovation Decline (S1) - Peaks then declines
-        s1 = 40 + 10 * np.exp(-0.2 * (years - 5) ** 2)
+        # Incremental Innovation Decline (S1)
+        s1 = r_and_d_spend * 0.002 * np.exp(-0.2 * (years - 5) ** 2)
 
-        # Radical Innovation Max Impact (S2) - Jumps at the threshold
-        s2 = np.where(years < 5, r_and_d_spend * 0.002, r_and_d_spend * 0.002 + (years - 5) * 2.5)
+        # Radical Innovation Max Impact (S2)
+        s2 = np.where(years < 5, r_and_d_spend * 0.002, r_and_d_spend * 0.002 + (years - 5) * (rd_allocation / 40))
 
         # Creative Destruction Threshold
-        threshold = np.full_like(years, r_and_d_spend * 0.003)
+        threshold = np.full_like(years, revenue * 0.15 + (risk_tolerance * 0.01 * revenue))
 
-        # Radical Innovation Shift - Sharp increase after year 5
-        radical_innovation = np.where(years < 5, r_and_d_spend * 0.0015, r_and_d_spend * 0.0015 + (years - 5) * 1.5)
+        # Radical Innovation Shift
+        radical_innovation = np.where(years < 5, revenue * 0.1, revenue * 0.1 + (years - 5) * (risk_tolerance * 0.01 * revenue))
 
         # Plot the tradeoff curves
         ax.plot(years, s1, label="S1: Incremental Decline", color="blue")
@@ -106,14 +106,14 @@ with tab1:
         # Labels & Formatting
         ax.set_xlabel("Time (Years)")
         ax.set_ylabel("Innovation Value (Project Outcomes)")
-        ax.set_title(f"Innovation Tradeoff Simulation (Revenue: ${revenue:,.0f}, R&D: ${r_and_d_spend:,.0f})")
+        ax.set_title(f"Innovation Tradeoff Simulation\n(Revenue: ${revenue:,.0f}, R&D: ${r_and_d_spend:,.0f})")
         ax.legend()
         st.pyplot(fig)
 
     # Button to Generate Prediction
     if st.button("🔮 Generate AI-Powered Tradeoff Graph"):
         if revenue > 0 and r_and_d_spend > 0:
-            generate_innovation_tradeoff_graph(revenue, r_and_d_spend)
+            generate_innovation_tradeoff_graph(revenue, r_and_d_spend, risk_tolerance, rd_allocation)
         else:
             st.warning("⚠️ Please enter valid revenue & R&D investment data.")
 
