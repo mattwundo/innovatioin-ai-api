@@ -35,7 +35,7 @@ if st.sidebar.button("📊 Get Financial Data"):
         st.sidebar.warning("⚠️ Unable to fetch data. Check ticker symbol.")
 
 # Tabs for different sections
-tab1, tab2, tab3 = st.tabs(["🔮 AI Prediction", "📊 Company Data", "📈 R&D Trends"])
+tab1, tab2, tab3 = st.tabs(["🔮 AI Prediction", "📊 Company Data", "📈 Innovation Tradeoff"])
 
 # 🔮 AI Prediction Tab
 with tab1:
@@ -45,10 +45,53 @@ with tab1:
     # API URL (Replace with actual Render API URL)
     API_URL = "https://your-app-name.onrender.com/predict"
 
+    def generate_innovation_tradeoff_graph(revenue, predicted_r_and_d):
+        """
+        Generates a dynamic Innovation Tradeoff Graph for each inquiry.
+        """
+        fig, ax = plt.subplots()
+
+        # Time (Years)
+        years = np.arange(0, 10, 1)
+
+        # Incremental Innovation Decline (S1) - Peaks then declines
+        s1 = 40 + 10 * np.exp(-0.2 * (years - 5) ** 2)
+
+        # Radical Innovation Max Impact (S2) - Jumps at the threshold
+        s2 = np.where(years < 5, 70, 70 + (years - 5) * 2.5)
+
+        # Creative Destruction Threshold - A constant threshold where radical innovation dominates
+        threshold = np.full_like(years, 80)
+
+        # Radical Innovation Shift - Sharp increase after year 5
+        radical_innovation = np.where(years < 5, 65, 65 + (years - 5) * 1.5)
+
+        # Plot the tradeoff curves
+        ax.plot(years, s1, label="S1: Incremental Decline", color="blue")
+        ax.plot(years, s2, label="S2: Radical Max Impact", color="red")
+        ax.plot(years, threshold, label="Creative Destruction Threshold", linestyle="dashed", color="red")
+        ax.plot(years, radical_innovation, label="Radical Innovation", linestyle="dashed", color="purple")
+
+        # Labels & Formatting
+        ax.set_xlabel("Time (Years)")
+        ax.set_ylabel("Innovation Value (Project Outcomes)")
+        ax.set_title("Manufacturing Investment Innovation Tradeoff Simulation")
+        ax.legend()
+
+        # Annotate critical points
+        ax.axvline(x=5, color="black", linestyle="dashed")
+        ax.text(5.2, 85, "Incremental Innovation", fontsize=10, color="black")
+        ax.text(8.2, 85, "Radical Innovation", fontsize=10, color="black")
+
+        st.pyplot(fig)
+
     def get_prediction():
+        """
+        Fetches AI-powered R&D prediction and generates a dynamic Innovation Tradeoff Graph.
+        """
         if revenue > 0:
-            with st.spinner("🔄 Fetching AI prediction..."):
-                time.sleep(2)  # Simulate loading time
+            with st.spinner("🔄 Running Innovation Model..."):
+                time.sleep(2)  # Simulate processing time
                 data = {"Revenue": revenue}
                 response = requests.post(API_URL, json=data)
 
@@ -57,25 +100,15 @@ with tab1:
                     predicted_r_and_d = prediction["Predicted R&D Spend"]
                     st.success(f"💡 Predicted R&D Investment: **${predicted_r_and_d:,.2f}**")
 
-                    # Generate R&D vs Revenue Chart
-                    revenue_values = np.linspace(1, revenue, 10)
-                    predicted_values = [predicted_r_and_d * (r / revenue) for r in revenue_values]
+                    # Generate the Innovation Tradeoff Graph
+                    generate_innovation_tradeoff_graph(revenue, predicted_r_and_d)
 
-                    fig, ax = plt.subplots()
-                    ax.plot(revenue_values, predicted_values, marker='o', color="blue", label="Predicted R&D")
-                    ax.set_xlabel("Revenue ($)")
-                    ax.set_ylabel("Predicted R&D Spend ($)")
-                    ax.legend()
-                    st.pyplot(fig)
-
-                    return predicted_r_and_d
                 else:
                     st.error("⚠️ Error: Could not fetch prediction from API.")
         else:
             st.warning("⚠️ Please enter a revenue amount greater than 0.")
-        return None
 
-    st.button("🔮 Predict R&D Spend", on_click=get_prediction)
+    st.button("🔮 Predict & Generate Graph", on_click=get_prediction)
 
 # 📊 Company Data Tab (Compare Multiple Companies)
 with tab2:
@@ -98,29 +131,10 @@ with tab2:
     if compare_data:
         df = pd.DataFrame(compare_data)
         st.write(df)
-
-        # Generate a bar chart
         st.bar_chart(df.set_index("Company")[["Revenue", "R&D Spend"]])
 
-# 📈 R&D Trends Tab (Compare with Industry Benchmarks)
-with tab3:
-    st.title("📈 R&D Spending Trends")
-    
-    industry_averages = {
-        "Tech": 0.15,  # Tech companies spend ~15% of revenue on R&D
-        "Pharma": 0.20,  # Pharma companies ~20%
-        "Automotive": 0.05  # Automotive ~5%
-    }
-
-    st.subheader("📊 Compare to Industry Benchmarks")
-    industry = st.selectbox("Select Industry", list(industry_averages.keys()))
-
-    if revenue > 0:
-        benchmark_r_and_d = revenue * industry_averages[industry]
-        st.write(f"📌 Industry-standard R&D investment for {industry}: **${benchmark_r_and_d:,.2f}**")
-
 # 📥 Generate & Download PDF Report
-def generate_pdf(revenue, predicted_r_and_d, benchmark_r_and_d):
+def generate_pdf(revenue, predicted_r_and_d):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -129,7 +143,6 @@ def generate_pdf(revenue, predicted_r_and_d, benchmark_r_and_d):
     pdf.ln(10)
     pdf.cell(200, 10, f"Revenue: ${revenue:,.2f}", ln=True)
     pdf.cell(200, 10, f"Predicted R&D Spend: ${predicted_r_and_d:,.2f}", ln=True)
-    pdf.cell(200, 10, f"Industry Benchmark R&D Spend: ${benchmark_r_and_d:,.2f}", ln=True)
     
     pdf_file = "R&D_Report.pdf"
     pdf.output(pdf_file)
@@ -139,8 +152,7 @@ if st.button("📥 Download Report as PDF"):
     if revenue > 0:
         predicted_r_and_d = get_prediction()
         if predicted_r_and_d:
-            benchmark_r_and_d = revenue * industry_averages[industry]
-            pdf_file = generate_pdf(revenue, predicted_r_and_d, benchmark_r_and_d)
+            pdf_file = generate_pdf(revenue, predicted_r_and_d)
             with open(pdf_file, "rb") as f:
                 st.download_button("Download Report", f, file_name="R&D_Report.pdf")
     else:
