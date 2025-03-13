@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-# Set the title of the dashboard
+# Streamlit app title
 st.title("AI-Powered R&D Investment Predictor 🚀")
 
 # User input: Revenue amount
