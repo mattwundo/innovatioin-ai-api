@@ -37,17 +37,48 @@ if st.sidebar.button("📊 Get Financial Data"):
 # Tabs for different sections
 tab1, tab2, tab3 = st.tabs(["🔮 AI Prediction", "📊 Company Data", "📈 Innovation Tradeoff"])
 
-# 🔮 AI Prediction Tab
+# 🔮 AI Prediction Tab - Manual Input for Private Companies
 with tab1:
     st.title("🚀 AI-Powered R&D Investment Predictor")
-    revenue = st.number_input("Enter Company Revenue ($)", min_value=0, step=1000000, key="revenue_input")
+
+    # Private Company Data Table
+    st.subheader("📊 Enter Private Company Data")
+    
+    revenue = st.number_input("Revenue ($)", min_value=0, step=1000000, key="revenue_input")
+    r_and_d_spend = st.number_input("R&D Investment ($)", min_value=0, step=50000, key="rd_input")
+    profit_margin = st.number_input("Operating Profit Margin (%)", min_value=0.0, max_value=100.0, step=0.1, key="profit_input")
+    patents = st.number_input("Total Patents Filed (Last 3 Years)", min_value=0, step=1, key="patent_input")
+    risk_tolerance = st.slider("R&D Risk Tolerance (1-10)", 1, 10, key="risk_input")
+    rd_allocation = st.slider("Incremental vs. Radical R&D (%)", 0, 100, key="allocation_input")
+    competitor_threat = st.slider("Competitor Threat Level (1-10)", 1, 10, key="threat_input")
+    disruptive_impact = st.slider("Disruptive Event Impact (1-10)", 1, 10, key="disruptive_input")
+    industry = st.selectbox("Select Industry", ["Tech", "Pharma", "Automotive", "Other"], key="industry_input")
+    market_growth = st.number_input("Market Growth Rate (%)", min_value=-10.0, max_value=20.0, step=0.1, key="growth_input")
+
+    # Convert Data into a Table
+    data_dict = {
+        "Revenue ($)": revenue,
+        "R&D Investment ($)": r_and_d_spend,
+        "Operating Profit Margin (%)": profit_margin,
+        "Total Patents (3Y)": patents,
+        "R&D Risk Tolerance": risk_tolerance,
+        "Incremental vs. Radical R&D (%)": rd_allocation,
+        "Competitor Threat Level": competitor_threat,
+        "Disruptive Event Impact": disruptive_impact,
+        "Industry": industry,
+        "Market Growth Rate (%)": market_growth
+    }
+
+    df_private = pd.DataFrame([data_dict])
+    st.write("📋 **Entered Data:**")
+    st.dataframe(df_private)
 
     # API URL (Replace with actual Render API URL)
     API_URL = "https://your-app-name.onrender.com/predict"
 
-    def generate_innovation_tradeoff_graph(revenue, predicted_r_and_d):
+    def generate_innovation_tradeoff_graph(revenue, r_and_d_spend):
         """
-        Generates a dynamic Innovation Tradeoff Graph for each inquiry.
+        Generates a custom Innovation Tradeoff Graph based on user-entered private company data.
         """
         fig, ax = plt.subplots()
 
@@ -58,13 +89,13 @@ with tab1:
         s1 = 40 + 10 * np.exp(-0.2 * (years - 5) ** 2)
 
         # Radical Innovation Max Impact (S2) - Jumps at the threshold
-        s2 = np.where(years < 5, 70, 70 + (years - 5) * 2.5)
+        s2 = np.where(years < 5, r_and_d_spend * 0.002, r_and_d_spend * 0.002 + (years - 5) * 2.5)
 
-        # Creative Destruction Threshold - A constant threshold where radical innovation dominates
-        threshold = np.full_like(years, 80)
+        # Creative Destruction Threshold
+        threshold = np.full_like(years, r_and_d_spend * 0.003)
 
         # Radical Innovation Shift - Sharp increase after year 5
-        radical_innovation = np.where(years < 5, 65, 65 + (years - 5) * 1.5)
+        radical_innovation = np.where(years < 5, r_and_d_spend * 0.0015, r_and_d_spend * 0.0015 + (years - 5) * 1.5)
 
         # Plot the tradeoff curves
         ax.plot(years, s1, label="S1: Incremental Decline", color="blue")
@@ -75,66 +106,19 @@ with tab1:
         # Labels & Formatting
         ax.set_xlabel("Time (Years)")
         ax.set_ylabel("Innovation Value (Project Outcomes)")
-        ax.set_title("Manufacturing Investment Innovation Tradeoff Simulation")
+        ax.set_title(f"Innovation Tradeoff Simulation (Revenue: ${revenue:,.0f}, R&D: ${r_and_d_spend:,.0f})")
         ax.legend()
-
-        # Annotate critical points
-        ax.axvline(x=5, color="black", linestyle="dashed")
-        ax.text(5.2, 85, "Incremental Innovation", fontsize=10, color="black")
-        ax.text(8.2, 85, "Radical Innovation", fontsize=10, color="black")
-
         st.pyplot(fig)
 
-    def get_prediction():
-        """
-        Fetches AI-powered R&D prediction and generates a dynamic Innovation Tradeoff Graph.
-        """
-        if revenue > 0:
-            with st.spinner("🔄 Running Innovation Model..."):
-                time.sleep(2)  # Simulate processing time
-                data = {"Revenue": revenue}
-                response = requests.post(API_URL, json=data)
-
-                if response.status_code == 200:
-                    prediction = response.json()
-                    predicted_r_and_d = prediction["Predicted R&D Spend"]
-                    st.success(f"💡 Predicted R&D Investment: **${predicted_r_and_d:,.2f}**")
-
-                    # Generate the Innovation Tradeoff Graph
-                    generate_innovation_tradeoff_graph(revenue, predicted_r_and_d)
-
-                else:
-                    st.error("⚠️ Error: Could not fetch prediction from API.")
+    # Button to Generate Prediction
+    if st.button("🔮 Generate AI-Powered Tradeoff Graph"):
+        if revenue > 0 and r_and_d_spend > 0:
+            generate_innovation_tradeoff_graph(revenue, r_and_d_spend)
         else:
-            st.warning("⚠️ Please enter a revenue amount greater than 0.")
-
-    st.button("🔮 Predict & Generate Graph", on_click=get_prediction)
-
-# 📊 Company Data Tab (Compare Multiple Companies)
-with tab2:
-    st.title("📊 Compare Company Financials")
-
-    tickers = st.text_input("Enter company tickers (comma-separated):", "AAPL, TSLA, MSFT")
-    tickers = [ticker.strip() for ticker in tickers.split(",")]
-
-    compare_data = []
-
-    for ticker in tickers:
-        stock = yf.Ticker(ticker)
-        try:
-            revenue = stock.financials.loc["Total Revenue"].iloc[0]
-            r_and_d = stock.financials.loc["Research Development"].iloc[0] if "Research Development" in stock.financials.index else revenue * 0.05
-            compare_data.append({"Company": ticker, "Revenue": revenue, "R&D Spend": r_and_d})
-        except:
-            pass
-
-    if compare_data:
-        df = pd.DataFrame(compare_data)
-        st.write(df)
-        st.bar_chart(df.set_index("Company")[["Revenue", "R&D Spend"]])
+            st.warning("⚠️ Please enter valid revenue & R&D investment data.")
 
 # 📥 Generate & Download PDF Report
-def generate_pdf(revenue, predicted_r_and_d):
+def generate_pdf(revenue, r_and_d_spend):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -142,18 +126,16 @@ def generate_pdf(revenue, predicted_r_and_d):
     pdf.cell(200, 10, "AI-Powered R&D Investment Report", ln=True, align='C')
     pdf.ln(10)
     pdf.cell(200, 10, f"Revenue: ${revenue:,.2f}", ln=True)
-    pdf.cell(200, 10, f"Predicted R&D Spend: ${predicted_r_and_d:,.2f}", ln=True)
+    pdf.cell(200, 10, f"R&D Investment: ${r_and_d_spend:,.2f}", ln=True)
     
     pdf_file = "R&D_Report.pdf"
     pdf.output(pdf_file)
     return pdf_file
 
 if st.button("📥 Download Report as PDF"):
-    if revenue > 0:
-        predicted_r_and_d = get_prediction()
-        if predicted_r_and_d:
-            pdf_file = generate_pdf(revenue, predicted_r_and_d)
-            with open(pdf_file, "rb") as f:
-                st.download_button("Download Report", f, file_name="R&D_Report.pdf")
+    if revenue > 0 and r_and_d_spend > 0:
+        pdf_file = generate_pdf(revenue, r_and_d_spend)
+        with open(pdf_file, "rb") as f:
+            st.download_button("Download Report", f, file_name="R&D_Report.pdf")
     else:
-        st.warning("⚠️ Please enter a revenue amount first.")
+        st.warning("⚠️ Please enter valid revenue & R&D investment data.")
