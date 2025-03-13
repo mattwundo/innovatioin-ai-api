@@ -3,6 +3,8 @@ import requests
 import yfinance as yf
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import io
 
 # Set up Streamlit page
 st.set_page_config(page_title="AI R&D Predictor", page_icon="🚀", layout="wide")
@@ -16,7 +18,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Sidebar for company insights
+# Sidebar: Company Insights
 st.sidebar.header("🔍 Company Insights")
 company_ticker = st.sidebar.text_input("Enter Company Ticker (e.g., AAPL, TSLA)", value="AAPL")
 
@@ -25,10 +27,8 @@ if st.sidebar.button("📊 Get Financial Data"):
     try:
         market_cap = stock.info.get("marketCap", "Not Available")
         revenue = stock.financials.loc["Total Revenue"].iloc[0]
-
         st.sidebar.write(f"**Market Cap:** ${market_cap:,}")
         st.sidebar.write(f"**Revenue:** ${revenue:,}")
-
     except:
         st.sidebar.warning("⚠️ Unable to fetch data. Check ticker symbol.")
 
@@ -38,10 +38,9 @@ tab1, tab2, tab3 = st.tabs(["🔮 AI Prediction", "📊 Company Data", "📈 R&D
 # 🔮 AI Prediction Tab
 with tab1:
     st.title("🚀 AI-Powered R&D Investment Predictor")
-
     revenue = st.number_input("Enter Company Revenue ($)", min_value=0, step=1000000, key="revenue_input")
 
-    # API URL (Replace with your actual Render API URL)
+    # API URL (Replace with actual Render API URL)
     API_URL = "https://your-app-name.onrender.com/predict"
 
     def get_prediction():
@@ -64,6 +63,19 @@ with tab1:
                 ax.legend()
                 st.pyplot(fig)
 
+                # Generate downloadable report
+                df = pd.DataFrame([{"Revenue": revenue, "Predicted R&D": prediction["Predicted R&D Spend"]}])
+                towrite = io.BytesIO()
+                df.to_csv(towrite, index=False)
+                towrite.seek(0)
+
+                st.download_button(
+                    label="📥 Download Prediction Report",
+                    data=towrite,
+                    file_name="r_and_d_prediction.csv",
+                    mime="text/csv",
+                )
+
             else:
                 st.error("⚠️ Error: Could not fetch prediction from API.")
         else:
@@ -71,12 +83,32 @@ with tab1:
 
     st.button("🔮 Predict R&D Spend", on_click=get_prediction)
 
-# 📊 Company Data Tab
+# 📊 Company Data Tab (Compare Multiple Companies)
 with tab2:
-    st.title("📊 Company Financial Data")
-    st.write("View financial data for different companies.")
+    st.title("📊 Compare Company Financials")
 
-# 📈 R&D Trends Tab
+    tickers = st.text_input("Enter company tickers (comma-separated):", "AAPL, TSLA, MSFT")
+    tickers = [ticker.strip() for ticker in tickers.split(",")]
+
+    compare_data = []
+
+    for ticker in tickers:
+        stock = yf.Ticker(ticker)
+        try:
+            revenue = stock.financials.loc["Total Revenue"].iloc[0]
+            r_and_d = stock.financials.loc["Research Development"].iloc[0] if "Research Development" in stock.financials.index else revenue * 0.05
+            compare_data.append({"Company": ticker, "Revenue": revenue, "R&D Spend": r_and_d})
+        except:
+            pass
+
+    if compare_data:
+        df = pd.DataFrame(compare_data)
+        st.write(df)
+
+        # Generate a bar chart
+        st.bar_chart(df.set_index("Company")[["Revenue", "R&D Spend"]])
+
+# 📈 R&D Trends Tab (Placeholder for Future Enhancements)
 with tab3:
     st.title("📈 R&D Spending Trends")
     st.write("Compare R&D spending across industries.")
