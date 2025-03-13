@@ -1,19 +1,30 @@
 import streamlit as st
 import requests
 
-# Set up Streamlit page
-st.set_page_config(page_title="AI R&D Predictor", page_icon="🚀")
+# Set up Streamlit page with sidebar
+st.set_page_config(page_title="AI R&D Predictor", page_icon="🚀", layout="wide")
 
-# Title
+# Custom CSS for better UI
+st.markdown("""
+    <style>
+    .main {background-color: #f5f5f5;}
+    h1 {color: #2E86C1;}
+    .stButton>button {background-color: #2E86C1; color: white; font-size: 18px;}
+    </style>
+""", unsafe_allow_html=True)
+
+# Sidebar
+st.sidebar.header("🔍 Navigation")
+st.sidebar.info("Use this app to predict R&D investment based on company revenue!")
+
+# Main title
 st.title("🚀 AI-Powered R&D Investment Predictor")
 
 # User input section
 st.subheader("📊 Enter Company Financial Data")
-
-# ✅ Correct placement for the revenue input field
 revenue = st.number_input("Enter Company Revenue ($)", min_value=0, step=1000000, key="revenue_input")
 
-# API URL (Replace with actual URL)
+# API URL (Replace with actual Render API URL)
 API_URL = "https://your-app-name.onrender.com/predict"
 
 # Function to make API request
@@ -30,5 +41,5 @@ def get_prediction():
     else:
         st.warning("⚠️ Please enter a revenue amount greater than 0.")
 
-# ✅ Correct placement for the "Predict" button
+# Predict button
 st.button("🔮 Predict R&D Spend", on_click=get_prediction)
