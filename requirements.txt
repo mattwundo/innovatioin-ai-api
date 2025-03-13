@@ -1,6 +1,8 @@
-fflask
+flask
 numpy
 joblib
 scikit-learn
 requests
 matplotlib
+streamlit
+pandas
