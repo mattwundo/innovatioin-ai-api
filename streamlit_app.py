@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import io
+import time
+from fpdf import FPDF  # Install with: pip install fpdf
 
 # Set up Streamlit page
 st.set_page_config(page_title="AI R&D Predictor", page_icon="🚀", layout="wide")
@@ -45,41 +47,33 @@ with tab1:
 
     def get_prediction():
         if revenue > 0:
-            data = {"Revenue": revenue}
-            response = requests.post(API_URL, json=data)
+            with st.spinner("🔄 Fetching AI prediction..."):
+                time.sleep(2)  # Simulate loading time
+                data = {"Revenue": revenue}
+                response = requests.post(API_URL, json=data)
 
-            if response.status_code == 200:
-                prediction = response.json()
-                st.success(f"💡 Predicted R&D Investment: **${prediction['Predicted R&D Spend']:.2f}**")
+                if response.status_code == 200:
+                    prediction = response.json()
+                    predicted_r_and_d = prediction["Predicted R&D Spend"]
+                    st.success(f"💡 Predicted R&D Investment: **${predicted_r_and_d:,.2f}**")
 
-                # Generate R&D vs Revenue Chart
-                revenue_values = np.linspace(1, revenue, 10)
-                predicted_values = [prediction["Predicted R&D Spend"] * (r / revenue) for r in revenue_values]
+                    # Generate R&D vs Revenue Chart
+                    revenue_values = np.linspace(1, revenue, 10)
+                    predicted_values = [predicted_r_and_d * (r / revenue) for r in revenue_values]
 
-                fig, ax = plt.subplots()
-                ax.plot(revenue_values, predicted_values, marker='o', color="blue", label="Predicted R&D")
-                ax.set_xlabel("Revenue ($)")
-                ax.set_ylabel("Predicted R&D Spend ($)")
-                ax.legend()
-                st.pyplot(fig)
+                    fig, ax = plt.subplots()
+                    ax.plot(revenue_values, predicted_values, marker='o', color="blue", label="Predicted R&D")
+                    ax.set_xlabel("Revenue ($)")
+                    ax.set_ylabel("Predicted R&D Spend ($)")
+                    ax.legend()
+                    st.pyplot(fig)
 
-                # Generate downloadable report
-                df = pd.DataFrame([{"Revenue": revenue, "Predicted R&D": prediction["Predicted R&D Spend"]}])
-                towrite = io.BytesIO()
-                df.to_csv(towrite, index=False)
-                towrite.seek(0)
-
-                st.download_button(
-                    label="📥 Download Prediction Report",
-                    data=towrite,
-                    file_name="r_and_d_prediction.csv",
-                    mime="text/csv",
-                )
-
-            else:
-                st.error("⚠️ Error: Could not fetch prediction from API.")
+                    return predicted_r_and_d
+                else:
+                    st.error("⚠️ Error: Could not fetch prediction from API.")
         else:
             st.warning("⚠️ Please enter a revenue amount greater than 0.")
+        return None
 
     st.button("🔮 Predict R&D Spend", on_click=get_prediction)
 
@@ -108,7 +102,46 @@ with tab2:
         # Generate a bar chart
         st.bar_chart(df.set_index("Company")[["Revenue", "R&D Spend"]])
 
-# 📈 R&D Trends Tab (Placeholder for Future Enhancements)
+# 📈 R&D Trends Tab (Compare with Industry Benchmarks)
 with tab3:
     st.title("📈 R&D Spending Trends")
-    st.write("Compare R&D spending across industries.")
+    
+    industry_averages = {
+        "Tech": 0.15,  # Tech companies spend ~15% of revenue on R&D
+        "Pharma": 0.20,  # Pharma companies ~20%
+        "Automotive": 0.05  # Automotive ~5%
+    }
+
+    st.subheader("📊 Compare to Industry Benchmarks")
+    industry = st.selectbox("Select Industry", list(industry_averages.keys()))
+
+    if revenue > 0:
+        benchmark_r_and_d = revenue * industry_averages[industry]
+        st.write(f"📌 Industry-standard R&D investment for {industry}: **${benchmark_r_and_d:,.2f}**")
+
+# 📥 Generate & Download PDF Report
+def generate_pdf(revenue, predicted_r_and_d, benchmark_r_and_d):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    pdf.cell(200, 10, "AI-Powered R&D Investment Report", ln=True, align='C')
+    pdf.ln(10)
+    pdf.cell(200, 10, f"Revenue: ${revenue:,.2f}", ln=True)
+    pdf.cell(200, 10, f"Predicted R&D Spend: ${predicted_r_and_d:,.2f}", ln=True)
+    pdf.cell(200, 10, f"Industry Benchmark R&D Spend: ${benchmark_r_and_d:,.2f}", ln=True)
+    
+    pdf_file = "R&D_Report.pdf"
+    pdf.output(pdf_file)
+    return pdf_file
+
+if st.button("📥 Download Report as PDF"):
+    if revenue > 0:
+        predicted_r_and_d = get_prediction()
+        if predicted_r_and_d:
+            benchmark_r_and_d = revenue * industry_averages[industry]
+            pdf_file = generate_pdf(revenue, predicted_r_and_d, benchmark_r_and_d)
+            with open(pdf_file, "rb") as f:
+                st.download_button("Download Report", f, file_name="R&D_Report.pdf")
+    else:
+        st.warning("⚠️ Please enter a revenue amount first.")
